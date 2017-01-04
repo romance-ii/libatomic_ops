@@ -25,9 +25,9 @@ by synthesis).  This is an attempt to replace various existing files with
 similar goals, since they usually do not handle differences in memory
 barrier styles with sufficient generality.
 
-If this is included after defining AO_REQUIRE_CAS, then the package
-will make an attempt to emulate compare-and-swap in a way that (at least
-on Linux) should still be async-signal-safe.  As a result, most other
+If this is included after defining AO_REQUIRE_CAS, then the package makes
+an attempt to emulate AO_compare_and_swap* (single-width) in a way that (at
+least on Linux) should still be async-signal-safe.  As a result, most other
 atomic operations will then be defined using the compare-and-swap
 emulation.  This emulation is slow, since it needs to disable signals.
 And it needs to block in case of contention.  If you care about performance
@@ -160,12 +160,16 @@ _read: Subsequent reads must become visible after reads included in
        the atomic operation or preceding it.  Rarely useful for clients?
 _write: Earlier writes become visible before writes during or after
         the atomic operation.  Rarely useful for clients?
-_full: Ordered with respect to both earlier and later memory ops.
+_full: The associated operation is ordered with respect to both earlier and
+       later memory ops.  If the associated operation is nop, then this orders
+       all earlier memory operations with respect to subsequent ones.
        AO_store_full or AO_nop_full are the normal ways to force a store
        to be ordered with respect to a later load.
 _release_write: Ordered with respect to earlier writes.  This is
                 normally implemented as either a _write or _release
                 barrier.
+_acquire_read: Ordered with respect to later reads. This is
+                normally implemented as either a _read or _acquire barrier.
 _dd_acquire_read: Ordered with respect to later reads that are data
                dependent on this one.  This is needed on
                a pointer read, which is later dereferenced to read a
@@ -177,12 +181,8 @@ _dd_acquire_read: Ordered with respect to later reads that are data
                eliminate dependencies from the generated code, since
                dependencies force the hardware to execute the code
                serially.)
-_release_read: Ordered with respect to earlier reads.  Useful for
-               implementing read locks.  Can be implemented as _release,
-               but not as _read, since _read groups the current operation
-               with the earlier ones.
 
-We assume that if a store is data-dependent on an a previous load, then
+We assume that if a store is data-dependent on a previous load, then
 the two are always implicitly ordered.
 
 It is possible to test whether AO_<op><barrier> is available on the
@@ -205,13 +205,6 @@ The following command generates a file "list_atomic.i" containing the
 macro expansions of all implemented operations on the platform:
 
 make list_atomic.i
-
-Future directions:
-
-It currently appears that something roughly analogous to this is very likely
-to become part of the C++0x standard.  That effort has pointed out a number
-of issues that we expect to address there.  Since some of the solutions
-really require compiler support, they may not be completely addressed here.
 
 Known issues include:
 

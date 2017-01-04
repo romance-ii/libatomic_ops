@@ -22,7 +22,8 @@
  * Derived from the corresponding header file for gcc.
  */
 
-#include "../atomic_load_store.h"
+#include "../loadstore/atomic_load.h"
+#include "../loadstore/atomic_store.h"
 
 /* Some architecture set descriptions include special "ordered" memory  */
 /* operations.  As far as we can tell, no existing processors actually  */
@@ -93,3 +94,7 @@ AO_pa_clear(volatile AO_TS_t * addr)
   *a = 1;
 }
 #define AO_CLEAR(addr) AO_pa_clear(addr)
+
+#undef AO_PA_LDCW_ALIGNMENT
+#undef AO_ldcw
+#undef AO_ldcw_align

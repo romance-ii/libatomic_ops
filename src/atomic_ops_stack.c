@@ -133,7 +133,7 @@ AO_stack_pop_explicit_aux_acquire(volatile AO_t *list, AO_stack_aux * a)
   for (i = 0; ; )
     {
       if (PRECHECK(a -> AO_stack_bl[i])
-          AO_compare_and_swap_acquire(a->AO_stack_bl+i, 0, first))
+          AO_compare_and_swap(a->AO_stack_bl+i, 0, first))
         break;
       ++i;
       if ( i >= AO_BL_SIZE )
@@ -151,6 +151,7 @@ AO_stack_pop_explicit_aux_acquire(volatile AO_t *list, AO_stack_aux * a)
   /* We need to make sure that first is still the first entry on the    */
   /* list.  Otherwise it's possible that a reinsertion of it was        */
   /* already started before we added the black list entry.              */
+  AO_nop_full(); /* TODO: Suboptimal on x86 */
 # if defined(__alpha__) && (__GNUC__ == 4)
     if (first != AO_load(list))
                         /* Workaround __builtin_expect bug found in     */
@@ -239,7 +240,9 @@ AO_t *AO_stack_pop_acquire(AO_stack_t *list)
 
 /* Needed for future IA64 processors.  No current clients? */
 
-#error Untested!  Probably doesnt work.
+#if !defined(CPPCHECK)
+# error Untested!  Probably does not work.
+#endif
 
 /* We have a wide CAS, but only does an AO_t-wide comparison.   */
 /* We can't use the Treiber optimization, since we only check   */
@@ -247,9 +250,10 @@ AO_t *AO_stack_pop_acquire(AO_stack_t *list)
 void AO_stack_push_release(AO_stack_t *list, AO_t *element)
 {
     AO_t version;
-    AO_t next_ptr;
 
     do {
+      AO_t next_ptr;
+
       /* Again version must be loaded first, for different reason.      */
       version = AO_load_acquire(&(list -> version));
       next_ptr = AO_load(&(list -> ptr));

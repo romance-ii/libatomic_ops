@@ -15,6 +15,16 @@
 # include "config.h"
 #endif
 
+#if defined(AO_NO_PTHREADS) && defined(AO_USE_PTHREAD_DEFS)
+# include <stdio.h>
+
+  int main(void)
+  {
+    printf("test skipped\n");
+    return 0;
+  }
+
+#else
 
 #include "run_parallel.h"
 
@@ -122,7 +132,7 @@ int acqrel_test(void)
 
 #if defined(AO_HAVE_test_and_set_acquire)
 
-AO_TS_T lock = AO_TS_INITIALIZER;
+AO_TS_t lock = AO_TS_INITIALIZER;
 
 unsigned long locked_counter;
 volatile unsigned long junk = 13;
@@ -138,7 +148,7 @@ void * test_and_set_thr(void * id)
       if (locked_counter != 1)
         {
           fprintf(stderr, "Test and set failure 1, counter = %ld, id = %d\n",
-                  locked_counter, (int)(AO_PTRDIFF_T)id);
+                  (long)locked_counter, (int)(AO_PTRDIFF_T)id);
           abort();
         }
       locked_counter *= 2;
@@ -148,7 +158,7 @@ void * test_and_set_thr(void * id)
       if (locked_counter != 1)
         {
           fprintf(stderr, "Test and set failure 2, counter = %ld, id = %d\n",
-                  locked_counter, (int)(AO_PTRDIFF_T)id);
+                  (long)locked_counter, (int)(AO_PTRDIFF_T)id);
           abort();
         }
       --locked_counter;
@@ -177,6 +187,7 @@ int main(void)
   test_atomic_full();
   test_atomic_release_write();
   test_atomic_acquire_read();
+  test_atomic_dd_acquire_read();
 # if defined(AO_HAVE_fetch_and_add1) && defined(AO_HAVE_fetch_and_sub1)
     run_parallel(4, add1sub1_thr, add1sub1_test, "add1/sub1");
 # endif
@@ -190,3 +201,5 @@ int main(void)
 # endif
   return 0;
 }
+
+#endif /* !AO_NO_PTHREADS || !AO_USE_PTHREAD_DEFS */

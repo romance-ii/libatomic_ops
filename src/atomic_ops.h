@@ -176,6 +176,13 @@
 # define AO_EXPECT_FALSE(expr) (expr)
 #endif /* !__GNUC__ */
 
+#if defined(__has_feature)
+  /* __has_feature() is supported.      */
+# if __has_feature(address_sanitizer)
+#   define AO_ADDRESS_SANITIZER
+# endif
+#endif
+
 #if defined(__GNUC__) && !defined(__INTEL_COMPILER)
 # define AO_compiler_barrier() __asm__ __volatile__("" : : : "memory")
 #elif defined(_MSC_VER) || defined(__DMC__) || defined(__BORLANDC__) \
@@ -203,7 +210,7 @@
 #   include <machine/sys/inline.h>
 #   define AO_compiler_barrier() _Asm_sched_fence()
 # else
-    /* FIXME - We dont know how to do this.  This is a guess.   */
+    /* FIXME - We do not know how to do this.  This is a guess. */
     /* And probably a bad one.                                  */
     static volatile int AO_barrier_dummy;
 #   define AO_compiler_barrier() (void)(AO_barrier_dummy = AO_barrier_dummy)
@@ -262,10 +269,18 @@
 # if defined(__m68k__)
 #   include "atomic_ops/sysdeps/gcc/m68k.h"
 # endif /* __m68k__ */
+# if defined(__nios2__)
+#   include "atomic_ops/sysdeps/gcc/nios2.h"
+# endif /* __nios2__ */
 # if defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) \
-     || defined(__powerpc64__) || defined(__ppc64__)
+     || defined(__powerpc64__) || defined(__ppc64__) \
+     || defined(_ARCH_PPC)
 #   include "atomic_ops/sysdeps/gcc/powerpc.h"
 # endif /* __powerpc__ */
+# if defined(__aarch64__)
+#   include "atomic_ops/sysdeps/gcc/aarch64.h"
+#   define AO_CAN_EMUL_CAS
+# endif /* __aarch64__ */
 # if defined(__arm__)
 #   include "atomic_ops/sysdeps/gcc/arm.h"
 #   define AO_CAN_EMUL_CAS
@@ -286,6 +301,9 @@
 # endif
 # if defined(__hexagon__)
 #   include "atomic_ops/sysdeps/gcc/hexagon.h"
+# endif
+# if defined(__tile__)
+#   include "atomic_ops/sysdeps/gcc/tile.h"
 # endif
 #endif /* __GNUC__ && !AO_USE_PTHREAD_DEFS */
 
@@ -353,16 +371,16 @@
 # define AO_CAN_EMUL_CAS
 #endif
 
-#if defined(AO_REQUIRE_CAS) && !defined(AO_HAVE_compare_and_swap) \
+#if (defined(AO_REQUIRE_CAS) && !defined(AO_HAVE_compare_and_swap) \
     && !defined(AO_HAVE_fetch_compare_and_swap) \
     && !defined(AO_HAVE_compare_and_swap_full) \
     && !defined(AO_HAVE_fetch_compare_and_swap_full) \
     && !defined(AO_HAVE_compare_and_swap_acquire) \
-    && !defined(AO_HAVE_fetch_compare_and_swap_acquire)
+    && !defined(AO_HAVE_fetch_compare_and_swap_acquire)) || defined(CPPCHECK)
 # if defined(AO_CAN_EMUL_CAS)
 #   include "atomic_ops/sysdeps/emul_cas.h"
-# else
-#  error Cannot implement AO_compare_and_swap_full on this architecture.
+# elif !defined(CPPCHECK)
+#   error Cannot implement AO_compare_and_swap_full on this architecture.
 # endif
 #endif /* AO_REQUIRE_CAS && !AO_HAVE_compare_and_swap ... */
 
@@ -386,6 +404,12 @@
 /* In fact, we observe that this converges after a small fixed number   */
 /* of iterations, usually one.                                          */
 #include "atomic_ops/generalize.h"
+
+#if !defined(AO_GENERALIZE_TWICE) \
+    && defined(AO_HAVE_compare_double_and_swap_double) \
+    && (!defined(AO_HAVE_double_load) || !defined(AO_HAVE_double_store))
+# define AO_GENERALIZE_TWICE
+#endif
 
 #ifdef AO_T_IS_INT
   /* Included after the first generalization pass.      */
